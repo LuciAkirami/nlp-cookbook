@@ -108,3 +108,101 @@ class PositionalEncoding(nn.Module):
                              requires_grad=False)
         # Apply dropout
         return self.dropout(x)
+    
+"""
+The LayerNormalization class is a type of normalization technique like Batch Normalization. 
+However, unlike Batch Normalization, Layer Normalization performs normalization on the last 
+dimension (features) instead of the batch dimension. 
+This makes it batch size independent and can be used in a variety of contexts where 
+Batch Normalization cannot be used.
+"""
+class LayerNormalization(nn.Module):
+    def __init__(self, eps: float = 10 ** -6):
+        """
+        Initialize the LayerNormalization model.
+
+        Args:
+            eps (float): A small number to prevent division by zero. Default is 10^-6.
+
+        Returns:
+            None
+        """
+        super().__init__()
+
+        # If std is close to 0 then, (x-mean) / std becomes a very large number
+        # and becomes difficult to calculate for the GPU. Hence, an epsilon 'eps' is used
+        self.eps = eps
+
+        # The nn.Parameter creates a learnable parameter
+        # 'alpha' and 'bias' are two learnable parameters for the model
+        # 'alpha' is a multiplicative factor and 'bias' is an additive factor
+        self.alpha = nn.Parameter(torch.ones(1))  # Multiplicative factor
+        self.bias = nn.Parameter(torch.zeros(1))  # Additive factor
+
+    def forward(self, x):
+        """
+        Forward pass of the model.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after applying the forward pass.
+        """
+
+        # Calculate the mean of 'x' along the last dimension
+        mean = x.mean(dim=-1, keepdim=True)
+        # Calculate the standard deviation of 'x' along the last dimension
+        std = x.std(dim=-1, keepdim=True)
+
+        # Normalize 'x' by subtracting the mean and dividing by the standard deviation
+        # Multiply the result by 'alpha' and add 'bias'
+        # The small number 'eps' is added to the denominator to prevent division by zero
+        return self.alpha * (x - mean) / (std + self.eps) + self.bias
+
+# the feedforward layer is the same as in the original paper
+class FeedForwardLayer(nn.Module):
+    def __init__(self, d_model: int, d_ff: int, dropout: float):
+        """
+        Initialize the FeedForwardLayer model.
+
+        Args:
+            d_model (int): The embedding size.
+            d_ff (int): The dimension of the feedforward network model.
+            dropout (float): The dropout rate.
+
+        Returns:
+            None
+        """
+        super().__init__()
+
+        # Define the first linear layer with input size 'd_model' and output size 'd_ff'
+        self.linear_1 = nn.Linear(d_model, d_ff)
+        # Define the ReLU activation function
+        self.relu = nn.ReLU()
+        # Define the dropout layer with dropout rate 'dropout'
+        self.dropout = nn.Dropout(dropout)
+        # Define the second linear layer with input size 'd_ff' and output size 'd_model'
+        self.linear_2 = nn.Linear(d_ff, d_model)
+
+    def forward(self, x):
+        """
+        Forward pass of the model.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after applying the forward pass.
+        """
+
+        # Pass the input 'x' through the first linear layer
+        x = self.linear_1(x)
+        # Apply the ReLU activation function
+        x = self.relu(x)
+        # Apply dropout
+        x = self.dropout(x)
+        # Pass the result through the second linear layer
+        x = self.linear_2(x)
+
+        return x
