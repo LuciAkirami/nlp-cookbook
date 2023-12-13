@@ -304,3 +304,13 @@ class MultiHeadAttention(nn.Module):
         # Pass the output tensor through the output linear layer
         # (Batch_size,seq_len,d_model) --> (Batch_size,seq_len,d_model)
         return self.w_o(x)
+
+# adding skip connection
+class ResidualConnection(nn.Module):
+    def __init__(self,dropout: float) -> None:
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.norm = LayerNormalization()
+
+    def forward(self,sublayer,x):
+        return x + self.dropout(sublayer(self.norm(x)))
